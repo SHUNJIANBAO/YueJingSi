@@ -55,12 +55,14 @@ public class UIMirrorPanel : UIPanelBase
     }
 
     /// <summary>
-    /// 点击 Host：黑屏后以主机身份启动服务端与客户端，随后启动球体生成。
+    /// 点击 Host：黑屏后先结束未收尾的联机会话，再以主机身份启动服务端与客户端，随后启动球体生成。
     /// </summary>
     private void OnHostClicked()
     {
         EnterNetwork(() =>
         {
+            StopActiveNetworkSession();
+
             NetworkManager.singleton.StartHost();
 
             // 生成循环由主机驱动，客户端加入路径不会走到这里
@@ -124,6 +126,10 @@ public class UIMirrorPanel : UIPanelBase
     /// </summary>
     private IEnumerator ReturnToMainScene()
     {
+        // 卸载子场景会一并销毁网络管理器物体，先结束尚未收尾的联机会话，
+        // 否则服务端线程会继续占着监听端口
+        StopActiveNetworkSession();
+
         Scene mirrorScene = SceneManager.GetSceneByName(MIRROR_SCENE);
         if (mirrorScene.isLoaded)
         {
@@ -139,5 +145,33 @@ public class UIMirrorPanel : UIPanelBase
         // 场景与界面均已就绪，此时才允许遮罩淡出
         UIManager.Instance.GetPanel<UIMaskPanel>()?.RequestReveal();
         UIManager.Instance.ClosePanel<UIMirrorPanel>(false);
+    }
+
+    /// <summary>
+    /// 结束当前尚未收尾的联机会话。
+    /// </summary>
+    private void StopActiveNetworkSession()
+    {
+        NetworkManager networkManager = NetworkManager.singleton;
+        if (networkManager == null) return;
+
+        if (!NetworkServer.active && !NetworkClient.active) return;
+
+        // 停服会按 offlineScene 触发一次场景加载，本子场景自身就是 offlineScene，
+        // 停服期间先清空该字段，停完再还原，避免主界面被单模式重载顶掉
+        string offlineScene = networkManager.offlineScene;
+        networkManager.offlineScene = string.Empty;
+
+        try
+        {
+            if (NetworkServer.active)
+                networkManager.StopHost();
+            else
+                networkManager.StopClient();
+        }
+        finally
+        {
+            networkManager.offlineScene = offlineScene;
+        }
     }
 }
