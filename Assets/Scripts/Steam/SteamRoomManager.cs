@@ -620,7 +620,7 @@ public class SteamRoomManager : MonoSingleton<SteamRoomManager>
         bool hasPassword = !string.IsNullOrEmpty(SteamMatchmaking.GetLobbyData(currentLobbyId, "password"));
 
         return
-            $"房间: {roomName} | 人数: {memberCount}/{maxPlayersPerRoom} | 密码: {(hasPassword ? "有" : "无")} | 房主: {(isHost ? "是" : "否")}";
+            $"房间: {roomName} | 房主: {(isHost ? "是" : "否")}";
     }
 
     /// <summary>
