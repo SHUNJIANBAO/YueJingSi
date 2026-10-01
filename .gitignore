@@ -1,0 +1,11 @@
+Library/
+obj/
+Temp/
+.vs/
+Assembly-CSharp.csproj
+Assembly-CSharp-Editor.csproj
+Frame.sln
+Logs
+/*.csproj
+/.code-atlas
+/.vscode
