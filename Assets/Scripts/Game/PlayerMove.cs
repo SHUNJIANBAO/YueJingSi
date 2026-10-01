@@ -1,9 +1,10 @@
 using Mirror;
+using Steamworks;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
 /// <summary>
-/// 本地玩家的方向键平面移动、鼠标转向与跟随相机控制。
+/// 本地玩家的方向键平面移动、鼠标转向、跟随相机控制与头顶玩家名显示。
 /// </summary>
 [DisallowMultipleComponent]
 public class PlayerMove : NetworkBehaviour
@@ -25,6 +26,19 @@ public class PlayerMove : NetworkBehaviour
     [InspectorName("俯仰限制")]
     [Tooltip("相机向上与向下俯仰的最大角度。")]
     private float _pitchLimit = 60f;
+
+    // 头顶玩家名文本
+    [SerializeField]
+    [InspectorName("玩家名文本")]
+    [Tooltip("显示玩家名的头顶文本组件。")]
+    private TextMesh _nameText;
+
+    // 玩家名，由服务端在生成时确定后同步给所有客户端
+    [SyncVar(hook = nameof(OnPlayerNameChanged))]
+    private string _playerName = string.Empty;
+
+    // 服务端本次会话已发放到的玩家编号
+    private static int _playerNumberSeed;
 
     // 方向键移动输入
     private InputAction _moveAction;
@@ -87,6 +101,26 @@ public class PlayerMove : NetworkBehaviour
 
         // 鼠标增量直接作为转向输入，锁定光标后才有稳定手感
         _lookAction = new InputAction("Look", InputActionType.Value, "<Mouse>/delta");
+    }
+
+    /// <summary>
+    /// 服务端生成玩家时确定并下发玩家名。
+    /// </summary>
+    public override void OnStartServer()
+    {
+        base.OnStartServer();
+
+        _playerName = ResolvePlayerName();
+    }
+
+    /// <summary>
+    /// 客户端生成玩家后按当前同步值刷新头顶文字。
+    /// </summary>
+    public override void OnStartClient()
+    {
+        base.OnStartClient();
+
+        ApplyPlayerName(_playerName);
     }
 
     /// <summary>
@@ -287,4 +321,87 @@ public class PlayerMove : NetworkBehaviour
         Cursor.lockState = locked ? CursorLockMode.Locked : CursorLockMode.None;
         Cursor.visible = !locked;
     }
+
+    #region 玩家名
+
+    /// <summary>
+    /// 按当前联机模式确定本玩家在服务端的显示名。
+    /// </summary>
+    /// <returns>本玩家的显示名。</returns>
+    private string ResolvePlayerName()
+    {
+        int number = NextPlayerNumber();
+        string steamName = ResolveSteamName();
+
+        return string.IsNullOrEmpty(steamName) ? $"Player{number}" : steamName;
+    }
+
+    /// <summary>
+    /// 取服务端本次会话的下一个玩家编号。
+    /// </summary>
+    /// <returns>玩家编号，房主固定为 1。</returns>
+    private int NextPlayerNumber()
+    {
+        // 房主的玩家总是本会话第一个生成的对象，以它为计数起点，
+        // 避免静态编号在上一局结束后残留
+        if (connectionToClient == NetworkServer.localConnection)
+        {
+            _playerNumberSeed = 1;
+            return _playerNumberSeed;
+        }
+
+        _playerNumberSeed++;
+        return _playerNumberSeed;
+    }
+
+    /// <summary>
+    /// 按当前联机模式读取本玩家的 Steam 名称。
+    /// </summary>
+    /// <returns>Steam 名称；非 Steam 对局或名称不可用时返回空字符串。</returns>
+    private string ResolveSteamName()
+    {
+        // Steam 房间管理器只随 Steam 场景存在，用它在场与否区分房间模式与本地模式；
+        // SteamManager.Initialized 在实例缺失时会自建对象，因此放在后面由短路兜住
+        if (SteamRoomManager.GetInstance() == null || !SteamManager.Initialized)
+            return string.Empty;
+
+        // 房主走本机 Steam 账号，其余连接从传输层地址取回 SteamID
+        if (connectionToClient == NetworkServer.localConnection)
+            return SteamFriends.GetPersonaName();
+
+        if (connectionToClient == null || !ulong.TryParse(connectionToClient.address, out ulong steamId))
+            return string.Empty;
+
+        string steamName = SteamFriends.GetFriendPersonaName(new CSteamID(steamId));
+
+        // Steam 尚未拿到对方资料时不会给出昵称
+        return steamName == "[unknown]" ? string.Empty : steamName;
+    }
+
+    /// <summary>
+    /// 玩家名同步值变化时刷新头顶文字。
+    /// </summary>
+    /// <param name="oldName">变化前的玩家名。</param>
+    /// <param name="newName">变化后的玩家名。</param>
+    private void OnPlayerNameChanged(string oldName, string newName)
+    {
+        ApplyPlayerName(newName);
+    }
+
+    /// <summary>
+    /// 把玩家名写入头顶文本组件。
+    /// </summary>
+    /// <param name="playerName">要显示的玩家名。</param>
+    private void ApplyPlayerName(string playerName)
+    {
+        if (_nameText == null)
+        {
+            Debug.LogWarning("[PlayerMove] 未配置玩家名文本组件，玩家名不会显示");
+            return;
+        }
+
+        _nameText.text = playerName;
+    }
+
+    #endregion
 }

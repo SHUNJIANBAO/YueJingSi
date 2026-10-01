@@ -60,7 +60,7 @@ public class UIMainPanel : UIPanelBase
     /// </summary>
     private void OnClickStartGame()
     {
-        //EnterSubScene(STEAM_SCENE, () => UIManager.Instance.OpenPanel<UIRoomListPanel>(false));
+        EnterSubScene(STEAM_SCENE, () => UIManager.Instance.OpenPanel<UIRoomListPanel>(false));
     }
 
     /// <summary>
