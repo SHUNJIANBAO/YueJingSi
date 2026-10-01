@@ -71,11 +71,20 @@ public class UIMirrorPanel : UIPanelBase
     }
 
     /// <summary>
-    /// 点击 Client：黑屏后以客户端身份连接当前网络地址。
+    /// 点击 Client：黑屏后补挂断线监听，并以客户端身份连接当前网络地址。
     /// </summary>
     private void OnClientClicked()
     {
-        EnterNetwork(() => NetworkManager.singleton.StartClient());
+        EnterNetwork(() =>
+        {
+            NetworkManager networkManager = NetworkManager.singleton;
+
+            // 监听组件先补挂、订阅后置：StartClient 内部会整体重写 NetworkClient 的静态事件，
+            // 排在它之前订阅会被直接覆盖掉
+            MatchDisconnectWatcher watcher = MatchDisconnectWatcher.EnsureOn(networkManager);
+            networkManager.StartClient();
+            watcher?.Subscribe();
+        });
     }
 
     /// <summary>
@@ -96,6 +105,7 @@ public class UIMirrorPanel : UIPanelBase
             // 启动动作已处理完毕，此时揭示遮罩并关闭本面板
             UIManager.Instance.GetPanel<UIMaskPanel>()?.RequestReveal();
             UIManager.Instance.ClosePanel<UIMirrorPanel>(false);
+            UIManager.Instance.OpenPanel<UIGamePanel>(false);
         });
     }
 

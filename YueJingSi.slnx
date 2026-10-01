@@ -38,13 +38,13 @@
   <Project Path="Unity.AI.Navigation.Editor.csproj" />
   <Project Path="EncryptionTransportEditor.csproj" />
   <Project Path="Unity.InputSystem.ForUI.csproj" />
+  <Project Path="Assembly-CSharp-Editor.csproj" />
   <Project Path="com.rlabrecque.steamworks.net.editor.csproj" />
   <Project Path="Unity.AI.Navigation.csproj" />
   <Project Path="Unity.Collections.CodeGen.csproj" />
   <Project Path="Telepathy.csproj" />
   <Project Path="Unity.Mathematics.Editor.csproj" />
   <Project Path="Unity.VisualScripting.SettingsProvider.Editor.csproj" />
-  <Project Path="Assembly-CSharp-Editor.csproj" />
   <Project Path="Unity.InputSystem.TestFramework.csproj" />
   <Project Path="Unity.VisualScripting.Shared.Editor.csproj" />
   <Project Path="Assembly-CSharp-firstpass.csproj" />
